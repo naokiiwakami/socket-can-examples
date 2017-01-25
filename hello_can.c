@@ -6,20 +6,24 @@
 #include <linux/can.h>
 #include <linux/if.h>
 
+/**
+ * This program opens a CAN socket and keeps reading imcoming CAN frames through the socket.
+ */
+
 int main(int argc, char *argv[])
 {
-    /*
-     *  Like TCP/IP, you first need to open a socket for communicating over a
+    /**
+     * Like TCP/IP, you first need to open a socket for communicating over a
      * CAN network. Since SocketCAN implements a new protocol family, you
      * need to pass PF_CAN as the first argument to the socket(2) system
      * call. Currently, there are two CAN protocols to choose from, the raw
      * socket protocol and the broadcast manager (BCM). So to open a socket.
      *
-     * This is an example of creating a CAN_RAW protocol socket.
+     * In this example, we create a raw CAN socket.
      */
     int s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
 
-    /*
+    /**
      * The sockaddr_can structure has an interface index like the
      * PF_PACKET socket, that also binds to a specific interface:
      *
@@ -34,61 +38,43 @@ int main(int argc, char *argv[])
      *       } can_addr;
      *   }
      */
-	struct sockaddr_can addr;
+    /* resolve interface index by name */
     struct ifreq ifr;
     strcpy(ifr.ifr_name, "can0");
-    ioctl(s, SIOCGIFINDEX, &ifr);
-
+    ioctl(s, SIOCGIFINDEX, &ifr); // SIOCGIFINDEX is name -> if_index mapping. See /usr/include/linux/sockios.h.
+    
+	struct sockaddr_can addr;
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
     bind(s, (struct sockaddr *) &addr, sizeof(addr));
 
-    /*
+    /**
      * The basic CAN frame structure and the sockaddr structure are defined
      * in include/linux/can.h:
      * 
      * struct can_frame {
      *     canid_t can_id;  // 32 bit CAN_ID + EFF/RTR/ERR flags
      *     __u8    can_dlc; // frame payload length in byte (0 .. 8)
+     *     __u8    __pad;   // padding
+     *     __u8    __res0;  // reserved / padding
+     *     __u8    __res1;  // reserved / padding
      *     __u8    data[8] __attribute__((aligned(8)));
      * };
-     *
-     * But use structure canfd_frame to send and receive data.
-     * struct canfd_frame {
-     * 	canid_t can_id;  // 32 bit CAN_ID + EFF/RTR/ERR flags
-     * 	__u8    len;     // frame payload length in byte
-     * 	__u8    flags;   // additional flags for CAN FD
-     * 	__u8    __res0;  // reserved / padding
-     * 	__u8    __res1;  // reserved / padding
-     * 	__u8    data[CANFD_MAX_DLEN] __attribute__((aligned(8)));
-     * };
      */
-	struct canfd_frame frame;
+    struct can_frame frame;
     
-	struct iovec iov;
-	struct msghdr msg;
-	char ctrlmsg[CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32))];
-
-	iov.iov_base = &frame;
-	msg.msg_name = &addr;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = &ctrlmsg;
-
-    /* these settings may be modified by recvmsg() */
     while (1) {
-        iov.iov_len = sizeof(frame);
-        msg.msg_namelen = sizeof(addr);
-        msg.msg_controllen = sizeof(ctrlmsg);  
-        msg.msg_flags = 0;
-
-        int nbytes = recvmsg(s, &msg, 0);
+        /**
+         * Reading CAN frames from a bound CAN_RAW socket consists of
+         * reading a struct can_frame.
+         */
+        int nbytes = read(s, &frame, sizeof(struct can_frame));
         if (nbytes > 0) {
-            printf("result=%d id=%d data(%d)=[", nbytes, frame.can_id, frame.len);
+            printf("result=%d id=%d data(%d)=[", nbytes, frame.can_id, frame.can_dlc);
             int i;
             char *comma = "";
-            for (i = 0; i < frame.len; ++i) {
+            for (i = 0; i < frame.can_dlc; ++i) {
                 printf("%s%02x", comma, frame.data[i]);
                 comma = ",";
             }

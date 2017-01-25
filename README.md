@@ -1,7 +1,6 @@
-# socketcan_hello
+# SocketCan Examples
 
-I place source code here while I read the SocketCAN readme file to understand how to use it.  
+This project has several simple SocketCAN example programs.
+
+My purpose with this project is to make a working version of SocketCAN document
 https://www.kernel.org/doc/Documentation/networking/can.txt
-
-I will start from hello_can.c which is a "hello world" program and eventually add more programs
-as I go through the document and learn more features.
