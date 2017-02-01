@@ -1,4 +1,4 @@
-all: hello_can
+all: can_hello
 
-hello_can: hello_can.c
-	cc -g -o hello_can hello_can.c
+can_hello: can_hello.c
+	cc -g -o can_hello can_hello.c
