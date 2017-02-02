@@ -1,1 +1,4 @@
+*.o
 can_hello
+can_filter
+
